@@ -1,10 +1,9 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9.0'
-            args '-v /root/.m2:/root/.m2'
-        }
+    agent any 
+    tools {
+        maven "Maven 3.9.2"
     }
+
     stages {
         stage('Build') {
             steps {
@@ -21,9 +20,18 @@ pipeline {
                 }
             }
         }
-        stage('Deliver') {
+        stage('Static Code Analysis') {
             steps {
-                sh './jenkins/scripts/deliver.sh'
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=cloud-infra'
+                }
+            }
+        }
+        stage("Quality Gate") {
+            steps {
+                  timeout(time: 1, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                  }
             }
         }
     }
